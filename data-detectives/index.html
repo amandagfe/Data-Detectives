@@ -10,13 +10,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="style.css?v=14">
 </head>
 <body>
 
 <div class="skip-links" aria-label="Atalhos de navegação">
   <a class="skip-link" href="#conteudo" data-i18n="skip">Ir para o conteúdo principal</a>
-  <a class="skip-link" href="#layer-guide" data-i18n="skip_globe">Ir para a explicação das camadas</a>
 </div>
 
 <nav class="nav" aria-label="Menu">
@@ -91,7 +90,7 @@
           <div class="colorbar" id="colorbar"></div>
         </div>
         <span class="count" id="pt-count"></span>
-        <a class="layer-help-link" href="#layer-guide" data-i18n="layer_help_link">Entender estas camadas ↓</a>
+        <div class="layer-tip" id="layer-tip" role="tooltip" hidden></div>
       </div>
       <dl class="hero-stats" id="hero-stats"></dl>
     </div>
@@ -100,32 +99,6 @@
 </header>
 
 <main id="conteudo" tabindex="-1">
-<section class="layer-guide band-mist" id="layer-guide" aria-labelledby="layer-guide-title" tabindex="-1">
-  <div class="wrap">
-    <div class="section-head">
-      <div><span class="eyebrow" data-i18n="layer_guide_eb">Alternativa textual ao globo</span><h2 id="layer-guide-title" data-i18n="layer_guide_h">O que cada camada realmente mostra</h2></div>
-      <p data-i18n="layer_guide_intro">As camadas usam fontes, escalas e períodos diferentes. Elas dão contexto regional e global; nenhuma diagnostica um imóvel nem substitui um alerta oficial.</p>
-    </div>
-    <div class="active-layer" id="active-layer-summary" role="status" aria-live="polite" aria-atomic="true">
-      <span class="active-layer-k" data-i18n="layer_active">Camada ativa</span>
-      <strong id="active-layer-title">Recorrência histórica (ML)</strong>
-      <p id="active-layer-summary-text">Saída relativa do modelo estrutural para células publicadas.</p>
-      <dl>
-        <div><dt data-i18n="layer_source_period">Fonte e período</dt><dd id="active-layer-source">–</dd></div>
-        <div><dt data-i18n="layer_limit">Limitação principal</dt><dd id="active-layer-limit">–</dd></div>
-      </dl>
-    </div>
-    <div class="layer-cards" id="layer-cards">
-      <article class="layer-card" data-layer-card="ev"><h3></h3><p class="layer-kind"></p><p class="layer-desc"></p><p class="layer-source"></p><p class="layer-limit"></p><button type="button" class="text-btn" data-show-layer="ev" aria-pressed="false"></button></article>
-      <article class="layer-card" data-layer-card="risk"><h3></h3><p class="layer-kind"></p><p class="layer-desc"></p><p class="layer-source"></p><p class="layer-limit"></p><button type="button" class="text-btn" data-show-layer="risk" aria-pressed="true"></button></article>
-      <article class="layer-card" data-layer-card="rain"><h3></h3><p class="layer-kind"></p><p class="layer-desc"></p><p class="layer-source"></p><p class="layer-limit"></p><button type="button" class="text-btn" data-show-layer="rain" aria-pressed="false"></button></article>
-      <article class="layer-card" data-layer-card="soil"><h3></h3><p class="layer-kind"></p><p class="layer-desc"></p><p class="layer-source"></p><p class="layer-limit"></p><button type="button" class="text-btn" data-show-layer="soil" aria-pressed="false"></button></article>
-      <article class="layer-card" data-layer-card="haz"><h3></h3><p class="layer-kind"></p><p class="layer-desc"></p><p class="layer-source"></p><p class="layer-limit"></p><button type="button" class="text-btn" data-show-layer="haz" aria-pressed="false"></button></article>
-      <article class="layer-card" data-layer-card="sat"><h3></h3><p class="layer-kind"></p><p class="layer-desc"></p><p class="layer-source"></p><p class="layer-limit"></p><button type="button" class="text-btn" data-show-layer="sat" aria-pressed="false"></button></article>
-    </div>
-    <p class="layer-guide-note" data-i18n="layer_guide_note"><b>Como investigar um lugar sem usar o globo:</b> use a busca ou o botão de localização. Todos os resultados e limitações aparecem em texto.</p>
-  </div>
-</section>
 <section class="simple-view band-light" id="resumo-local" aria-labelledby="simple-title">
   <div class="wrap">
     <div class="simple-head">
@@ -190,19 +163,18 @@
 
     <section class="catalog-status" aria-labelledby="catalog-status-title">
       <div class="catalog-status-head">
-        <div><span class="simple-label" data-i18n="catalog_status_eb">Atualização do catálogo</span><h3 id="catalog-status-title" data-i18n="catalog_status_h">Dados novos aplicados, com origem preservada.</h3></div>
-        <a href="docs/preparacao-dados.md#3-coolr-atual" data-i18n="catalog_status_link">Ver auditoria dos dados ↗</a>
+        <div><span class="simple-label" data-i18n="catalog_status_eb">Sobre os dados</span><h3 id="catalog-status-title" data-i18n="catalog_status_h">De onde vêm os registros do mapa.</h3></div>
       </div>
       <div class="catalog-status-grid">
         <article>
-          <span class="status-chip published" data-i18n="catalog_published">Usado no mapa e nos históricos locais</span>
+          <span class="status-chip published" data-i18n="catalog_published">Catálogo NASA COOLR</span>
           <strong id="catalog-published-value">14.753 registros · 1915–2025</strong>
-          <p data-i18n="catalog_published_p">O mapa e os históricos locais usam o COOLR integrado. Registros sem coordenada não aparecem no mapa, e registros sem data não entram em gráficos temporais.</p>
+          <p data-i18n="catalog_published_p">Reúne deslizamentos relatados por notícias, órgãos públicos e contribuições de cidadãos. Registros sem coordenada não aparecem no mapa, e registros sem data não entram nos gráficos ao longo do tempo.</p>
         </article>
         <article>
-          <span class="status-chip review" data-i18n="catalog_candidate">Integração por identidade do evento</span>
-          <strong id="catalog-integrated-value">11.030 substituídos · 3.720 adicionados · 3 preservados</strong>
-          <p id="catalog-integrated-note">Quando o event_id coincide, vale a versão do snapshot COOLR. IDs exclusivos das duas fontes são mantidos. Não há deduplicação por proximidade ou data.</p>
+          <span class="status-chip review" data-i18n="catalog_candidate">O que o catálogo não mostra</span>
+          <strong data-i18n="catalog_limit_h">Cobertura incompleta</strong>
+          <p data-i18n="catalog_limit_p">Um registro indica que um deslizamento foi relatado, não que todos foram. Lugares com menos notícias ou menos acesso à internet tendem a aparecer com menos eventos.</p>
         </article>
       </div>
     </section>
@@ -219,11 +191,11 @@
         </article>
         <article>
           <h4 data-i18n="guide_power_h">Chuva e umidade do solo</h4>
-          <p data-i18n="guide_power_p"><b>Milímetros</b> somam a chuva estimada no período; 1 mm equivale a 1 litro por metro quadrado. <b>Percentil 70</b>, por exemplo, significa valor maior que cerca de 70% dos períodos da referência local de 2001–2017. A umidade de 0 a 1 é um índice estimado: não é porcentagem nem sensor no imóvel.</p>
+          <p data-i18n="guide_power_p"><b>Milímetros</b> somam a chuva estimada no período; 1 mm equivale a 1 litro por metro quadrado. <b>Percentil 70</b>, por exemplo, significa valor maior que cerca de 70% dos períodos da referência local de 2001–2006. A umidade de 0 a 1 é um índice estimado: não é porcentagem nem sensor no imóvel.</p>
         </article>
         <article>
           <h4 data-i18n="guide_struct_h">Recorrência histórica</h4>
-          <p data-i18n="guide_struct_p">Resume onde o catálogo teve registros recorrentes em uma célula de 1°, usando atributos até 2017. Ausência de cobertura ou valor baixo não prova que o local seja seguro.</p>
+          <p data-i18n="guide_struct_p">Resume onde o catálogo teve registros recorrentes em uma célula de 1°, usando atributos até 2025. Ausência de cobertura ou valor baixo não prova que o local seja seguro.</p>
         </article>
         <article>
           <h4 data-i18n="guide_metrics_h">AUC, tendência e incerteza</h4>
@@ -298,7 +270,7 @@
         <p class="tile-txt" id="now-txt"></p>
       </article>
       <article class="tile">
-        <div class="tile-top"><span class="tile-k" data-i18n="t_struct">Recorrência histórica</span><span class="src" data-i18n="t_struct_src">ML · catálogo até 2017</span></div>
+        <div class="tile-top"><span class="tile-k" data-i18n="t_struct">Recorrência histórica</span><span class="src" data-i18n="t_struct_src">ML · catálogo até 2025</span></div>
         <div class="tile-main"><span class="big" id="st-prob">–</span><span class="badge" id="st-badge"></span></div>
         <p class="tile-txt" id="st-txt"></p>
       </article>
@@ -348,7 +320,7 @@
         <div><div class="mini-head" data-i18n="f4_a">(a) Eventos registrados por mês</div><svg class="mini" id="pl-season" viewBox="0 0 300 92"></svg></div>
         <div><div class="mini-head" data-i18n="f4_b">(b) Saída histórica do modelo por mês</div><svg class="mini" id="pl-pred" viewBox="0 0 300 92"></svg></div>
       </div>
-      <figcaption data-i18n="f4_cap"><b>Figura 4.</b> Registros do catálogo integrado COOLR/GLC no raio escolhido (datas encontradas entre 1915–2025; registros sem data permanecem no total) e saída mensal do modelo estrutural congelado até 2017 para a célula de 1°. Um único temporal pode gerar dezenas de registros no mesmo dia.</figcaption>
+      <figcaption data-i18n="f4_cap"><b>Figura 4.</b> Registros do catálogo integrado COOLR/GLC no raio escolhido (datas encontradas entre 1915–2025; registros sem data permanecem no total) e saída mensal do modelo de recorrência, treinado com dados até 2025, para a célula de 1°. Um único temporal pode gerar dezenas de registros no mesmo dia.</figcaption>
     </figure>
   </div>
 </section>
@@ -367,7 +339,7 @@
     <figure class="fig">
       <div class="fig-head"><h3 data-i18n="f6_h">Deslizamentos registrados por fase, por região</h3></div>
       <div class="chart-wrap"><svg id="enso-regions" viewBox="0 0 960 330"></svg></div>
-      <figcaption data-i18n="f6_cap"><b>Figura 6.</b> Eventos mensais do Global Landslide Catalog (2007–2017) divididos pela média do próprio ano, para reduzir o efeito do aumento de catalogação; média ± erro padrão por fase do ENSO. Valores acima de 1 indicam meses com mais registros que o normal daquele ano. São só 11 anos e poucos episódios: leia como indício, não como prova.</figcaption>
+      <figcaption data-i18n="f6_cap"><b>Figura 6.</b> Eventos mensais do catálogo integrado (2007–2025) divididos pela média do próprio ano, para reduzir o efeito do aumento de catalogação; média ± erro padrão por fase do ENSO. Valores acima de 1 indicam meses com mais registros que o normal daquele ano. São só 11 anos e poucos episódios: leia como indício, não como prova.</figcaption>
     </figure>
   </div>
 </section>
@@ -407,16 +379,16 @@
       <article class="model">
         <span class="role" data-i18n="m1_role">Quando?</span>
         <h3 data-i18n="m1_h">Modelo de disparo</h3>
-        <p data-i18n="m1_p">Compara chuva e umidade do solo em dias com registro e dias de controle na mesma célula. Percentis locais reduzem diferenças climáticas, mas não demonstram validade universal nem probabilidade de ocorrência.</p>
+        <p data-i18n="m1_p">Compara chuva e umidade do solo em dias com registro e dias de controle na mesma célula. Percentis locais reduzem diferenças climáticas, mas não demonstram validade universal nem probabilidade de ocorrência. No teste com lugares separados, que tem poucos casos (13), a vantagem sobre a chuva de 7 dias ainda não é conclusiva.</p>
         <dl class="ml-metrics" id="m1-metrics"></dl>
-        <figure class="fig plain"><svg class="imp" id="m1-imp" viewBox="0 0 520 300"></svg><figcaption data-i18n="f8_cap"><b>Figura 8.</b> Importância por permutação (queda no AUC ao embaralhar cada variável) no teste de 2015–2017.</figcaption></figure>
+        <figure class="fig plain"><svg class="imp" id="m1-imp" viewBox="0 0 520 300"></svg><figcaption data-i18n="f8_cap"><b>Figura 8.</b> Importância por permutação (queda no AUC ao embaralhar cada variável) no teste de 2020–2025.</figcaption></figure>
       </article>
       <article class="model">
         <span class="role" data-i18n="m2_role">Onde houve recorrência?</span>
         <h3 data-i18n="m2_h">Modelo de recorrência de registros</h3>
-        <p data-i18n="m2_p">Produz uma saída por célula de 1° × 1° e mês a partir do histórico do catálogo. O artefato usa atributos até 2017 e representa um horizonte histórico posterior, não uma estimativa atual nem risco físico.</p>
+        <p data-i18n="m2_p">Produz uma saída por célula de 1° × 1° e mês a partir do histórico do catálogo. Usa atributos do catálogo até 2025 e se refere ao horizonte 2026–2027. Não é probabilidade calibrada nem risco físico.</p>
         <dl class="ml-metrics" id="m2-metrics"></dl>
-        <figure class="fig plain"><svg class="imp" id="m2-imp" viewBox="0 0 520 300"></svg><figcaption data-i18n="f9_cap"><b>Figura 9.</b> Importância por permutação no teste de 2015–2016.</figcaption></figure>
+        <figure class="fig plain"><svg class="imp" id="m2-imp" viewBox="0 0 520 300"></svg><figcaption data-i18n="f9_cap"><b>Figura 9.</b> Importância por permutação no teste de 2017–2018.</figcaption></figure>
       </article>
     </div>
   </div>
@@ -477,7 +449,7 @@
           <tr><td class="ds">NASA POWER<span class="code">MERRA2 histórico / GEOSIT recente · PRECTOTCORR, GWETTOP, GWETROOT, T2M</span></td><td class="use" data-i18n="d1">Chuva, umidade do solo e temperatura diárias, ~0,5° × 0,625°</td><td class="per">1981–</td><td><span class="tag live" data-i18n="live">ao vivo</span></td><td><span class="tag">Fig. 1–3</span><span class="tag" data-i18n="train">Treino</span></td></tr>
           <tr><td class="ds">NOAA CPC ONI<span class="code">Niño 3.4 · ERSST</span></td><td class="use" data-i18n="d2">Índice do El Niño / La Niña</td><td class="per">1950–</td><td><span class="tag"><span data-i18n="file">arquivo</span>, <span id="oni-upd"></span></span></td><td><span class="tag">Fig. 2, 3, 5, 6</span></td></tr>
           <tr><td class="ds">COOLR Reports Points + GLC local<span class="code">NASA Goddard · integração auditada em 15/11/2026</span></td><td class="use" data-i18n="d3">Deslizamentos relatados: local, data, gatilho, mortes</td><td class="per">1915–2025*</td><td><span class="tag" data-i18n="file">arquivo</span></td><td><span class="tag" data-i18n="globe">Globo</span><span class="tag" data-i18n="history_use">históricos locais</span></td></tr>
-          <tr><td class="ds">Artefatos dos modelos<span class="code">dados de treino não atualizados nesta etapa</span></td><td class="use" data-i18n="d_model_data">Entradas históricas congeladas dos dois modelos publicados</td><td class="per">2001/2007–2017</td><td><span class="tag" data-i18n="file">arquivo</span></td><td><span class="tag"><span data-i18n="train">Treino</span> até 2017</span></td></tr>
+          <tr><td class="ds">Artefatos dos modelos<span class="code">dados de treino não atualizados nesta etapa</span></td><td class="use" data-i18n="d_model_data">Entradas de treino dos dois modelos publicados</td><td class="per">2001/2007–2025</td><td><span class="tag" data-i18n="file">arquivo</span></td><td><span class="tag"><span data-i18n="train">Treino</span> até 2025</span></td></tr>
           <tr><td class="ds">NASA GIBS / Worldview<span class="code">IMERG · SMAP L4 · VIIRS · NDH Landslide Hazard</span></td><td class="use" data-i18n="d7">Imagens diárias de chuva, umidade do solo e satélite; perigo de deslizamento</td><td class="per">–</td><td><span class="tag live" data-i18n="live">ao vivo</span></td><td><span class="tag" data-i18n="globe">Globo</span><span class="tag">Worldview</span></td></tr>
           <tr><td class="ds">Copernicus DEM<span class="code">Open-Meteo Elevation · 90 m</span></td><td class="use" data-i18n="d4">Altitude</td><td class="per">–</td><td><span class="tag live" data-i18n="live">ao vivo</span></td><td><span class="tag" data-i18n="t_slope">Terreno</span></td></tr>
           <tr><td class="ds">Open-Meteo Geocoding<span class="code">GeoNames</span></td><td class="use" data-i18n="d5">Busca de lugares</td><td class="per">–</td><td><span class="tag live" data-i18n="live">ao vivo</span></td><td><span class="tag" data-i18n="search">Busca</span></td></tr>
@@ -553,7 +525,7 @@
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/globe.gl@2.27.4/dist/globe.gl.min.js"></script>
-<script src="i18n.js?v=12"></script>
-<script src="app.js?v=12"></script>
+<script src="i18n.js?v=14"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>
