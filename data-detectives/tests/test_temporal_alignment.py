@@ -33,7 +33,7 @@ class TemporalAlignmentTest(unittest.TestCase):
         url = WEATHER.power_url(-22.5, -43.125)
         self.assertIn("time-standard=LST", url)
         self.assertIn("start=20010101", url)
-        self.assertIn("end=20171231", url)
+        self.assertIn("end=20251231", url)
 
 
 if __name__ == "__main__":

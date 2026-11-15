@@ -9,9 +9,9 @@ Estado verificado em 15/11/2026. Esta etapa não treinou, substituiu ou promoveu
 | Telegram | backend opcional implementado; token e destinatário ficam no ambiente do servidor e não chegam ao navegador | token compartilhado fora do secret manager deve ser tratado como exposto; rate limit em memória precisa de camada distribuída se houver múltiplas instâncias |
 | GLC | bruto imutável, manifesto e catálogo v2 preservam 11.033 IDs, coordenadas, precisão, nulidade e origem | licença continua “não especificada” no portal; isso não autoriza inferir condições de reutilização |
 | COOLR | Reports Points integrado ao mapa/histórico por `event_id`, com 14.753 IDs únicos | versão e licença explícita não constam dos metadados auditados; modelos continuam até 2017 |
-| POWER | ledger novo reconcilia 8.197 candidatos; piloto de três células validou quatro candidatos | 7.953 pares continuam pendentes; a perda histórica DD-027 continua inexplicável sem os intermediários originais |
+| POWER | execução `2026-11-15-v2` reconcilia os 14.753 registros: 9.177 pares válidos, 360 excluídos por gatilho, zero pendente/falho | a perda histórica DD-027 continua inexplicável sem os intermediários originais |
 | tempo | regra preditiva D−1 explícita e quatro testes de fronteira passaram | datas do GLC não têm fuso confiável; a regra é conservadora, não uma reconstrução da hora real de cada evento |
-| estrutural | grade independente dos eventos, cortes espaciais/temporais e conjunto de teste reservado foram preparados | 51 registros ficam fora do domínio cartográfico independente; a política para ilhas/coordenadas costeiras precisa ser decidida antes do treino final |
+| estrutural | grade 1:50m independente dos eventos (18.378 células, sem Antártica), cortes espaciais/temporais e testes reservados | 3 de 12.928 registros ficam fora da grade e são excluídos sem deslocamento; manifesto ainda grava caminhos absolutos |
 | GIBS | `TIME`, data representada e fallback são carregados de `data/gibs.json` e exibidos | metadados são um snapshot de 15/11/2026 e precisam ser atualizados offline; uma resposta de imagem não valida o valor científico do pixel |
 
 ## 1. Segurança do Telegram
@@ -78,6 +78,29 @@ Reconciliação inicial:
 
 O piloto baixou três células, com uma tentativa por célula, produto `MERRA2` e API `v2.10.3`. Quatro candidatos ficaram válidos porque uma célula contém duas datas. Estado final do piloto: 4 válidos + 240 excluídos + 7.953 pendentes = 8.197, zero perda silenciosa. O ledger/cache está em `data/runs/weather/2026-11-15-v1/` e é artefato de trabalho ignorado pelo Git; os comandos e totais ficam documentados e são reproduzíveis.
 
+### Execução completa `2026-11-15-v2` (catálogo integrado, 2007–2025)
+
+O preparo partiu dos 14.753 registros do catálogo schema v3 e registrou uma decisão para cada um:
+
+| Quantidade | Valor |
+|---|---:|
+| registros vinculados a candidato | 11.072 |
+| registros vinculados a candidato excluído por gatilho não meteorológico | 379 |
+| excluídos antes do pareamento | 3.302 (1.637 sem data; 1.477 com precisão incompatível com a grade POWER; 165 fora de 2007–2025; 23 sem coordenada válida) |
+| pares célula-data | 9.537 em 2.744 células |
+| estado final | 9.177 válidos + 360 excluídos + 0 pendentes + 0 falhos; perda silenciosa 0 |
+
+Todos os válidos vieram de `MERRA2`, API `v2.10.3`, `LST`. Ledger, cache e `reconciliation.json` estão em `data/runs/weather/2026-11-15-v2/` (ignorado pelo Git).
+
+Incidente durante a coleta: dois processos `collect` foram iniciados em paralelo no mesmo ledger, e um deles rodava num sandbox que perdeu DNS. Todas as 144 falhas registradas são `Temporary failure in name resolution`. Os processos foram encerrados e a coleta foi retomada num único processo. A corrida deixou 36 células com status defasado (`failed`/`pending`) apesar de terem 124 candidatos válidos, que o treino descartaria. Correções:
+
+- `collect` agora exige trava exclusiva (`collect.lock`) por execução;
+- o status da célula deriva de todos os seus candidatos, não só da passada atual;
+- `reconcile` só declara `reconciled=true` se não houver célula defasada (`stale_cell_status`);
+- `repair-cells` promove a célula apenas quando o hash do cache confere com o registrado e com uma tentativa bem-sucedida; senão, devolve os candidatos à coleta. Cada decisão fica em `cell_repairs`. Nesta execução, 36/36 células tiveram o hash verificado e nenhuma precisou de nova coleta. O ledger anterior ao reparo foi preservado em `ledger.before-repair-cells.sqlite`.
+
+Testes: `tests/test_collect_lock.py` e `tests/test_cell_repair.py`.
+
 DD-027 não foi “resolvida” por essa execução. Ela pergunta por que o treino antigo reduziu 7.957 candidatos a 5.361 casos; sem seus caches e intermediários não é possível atribuir causa retrospectiva a cada perda. O novo ledger evita repetir essa lacuna em execuções futuras.
 
 ## 5. Regra temporal
@@ -101,14 +124,16 @@ O vazamento antigo permanece confirmado em `scripts/train_structural.py`: o conj
 - os quantis finais são calculados sobre todas as saídas do domínio previsto; podem servir à visualização, mas não à seleção/avaliação;
 - contagens/frações são recalculadas por janela. Elas não usam futuro dentro de `feats(y0,y1)`, mas qualquer normalizador aprendido futuro deve ser proibido explicitamente.
 
-O candidato v2 não treina. `scripts/build_land_grid.py` deriva 29.496 células de 1° exclusivamente do contorno `land` do world-atlas: centro terrestre ou margem costeira conservadora de 2°. `scripts/prepare_structural_v2.py` cria atributos apenas até cada corte, particiona blocos espaciais de 5° de modo determinístico e reserva:
+`scripts/build_land_grid.py` deriva as células de 1° exclusivamente de um contorno terrestre, sem consultar eventos: centro terrestre ou margem costeira conservadora de 2°. A primeira versão, baseada no contorno 1:110m do world-atlas, tinha 29.496 células; a versão final está descrita abaixo. `scripts/prepare_structural_v2.py` cria atributos apenas até cada corte, particiona blocos espaciais de 5° de modo determinístico e reserva:
 
 - seleção: treino 2007–2012 → 2013–2014, validação espacial e validação temporal em 2015;
 - testes intocados: temporal e espacial com atributos até 2015 → rótulos 2016–2017.
 
 Células sem histórico ficam na grade com `has_local_history=0`; fração de gatilho por chuva fica `null` com indicador de ausência, sem sentinela `-1`. Escalonadores ou qualquer transformação aprendida só podem ser ajustados no subconjunto de treino de cada corte. O smoke test materializou 600 linhas sem treinar.
 
-Dos 10.988 registros do período, 51 caem fora da grade independente, inclusive registros classificados com precisão de 1–25 km. Isso pode refletir ilhas ausentes no mapa 110m, coordenadas costeiras ou incerteza espacial. Eles são contados no manifesto e impedem considerar o domínio definitivo.
+Na primeira versão, 51 dos 10.988 registros de 2007–2017 caíam fora da grade; com o catálogo integrado (2007–2025), eram 57 de 12.928. A maioria estava em pequenas ilhas (Dominica, Santa Lúcia, Samoa, Madeira, Açores, Guam) ausentes ou simplificadas no contorno 1:110m.
+
+**Domínio fechado (DD-033).** A grade foi refeita a partir do contorno Natural Earth 1:50m, sem consultar o catálogo, e exclui células ao sul de 60°S. A Antártica estava gerando milhares de negativos sem relação com o uso pretendido. Resultado: 18.378 células. Ficam fora 3 de 12.928 registros (IDs 159, 13219 e 853). Eles continuam no catálogo e são excluídos do modelo sem deslocamento de coordenada. A exclusão ao sul de 60°S não alterou esses 3 casos, portanto não foi escolhida para melhorar a cobertura. Manifesto: `data/runs/structural/2026-11-15-v4/manifest.json`.
 
 ## 7. Datas GIBS
 
@@ -125,9 +150,11 @@ As quatro requisições retornaram imagens válidas na verificação. `app.js` e
 
 ## 8. Prontidão para treinamento
 
-| Modelo | Dados adequados? | Pipeline adequado? | Pode iniciar treinamento de candidato? |
-|---|---|---|---|
-| meteorológico/disparo | **não**: somente três de 2.496 células foram coletadas no piloto | **sim para continuar a coleta**, com ledger/checkpoint/cache; protocolo futuro de split e transformações ainda deve ser acoplado ao treino | **não** |
-| estrutural/recorrência | **parcial**: catálogo v2 está rastreável, mas 51 registros ficam fora do domínio proposto | **parcial**: cortes, atributos e proteção do teste existem; falta decidir/validar o domínio e materializar a execução completa | **não** |
+Situação em 15/11/2026:
 
-O modelo meteorológico atual e o estrutural atual continuam publicados apenas como artefatos históricos já auditados. Nenhum resultado desta etapa deve ser interpretado como uma nova métrica ou melhoria de desempenho.
+| Modelo | Dados | Candidato treinado? | Publicado? |
+|---|---|---|---|
+| meteorológico/disparo | coleta `2026-11-15-v2` reconciliada: 9.177 válidos, zero pendente/falho | **sim**; passou no gate pré-definido (ver [modelos.md](modelos.md#modelos-v2--publicados-em-15112026)) | **sim**, 15/11/2026 |
+| estrutural/recorrência | domínio 1:50m fechado; 12.925 de 12.928 registros dentro da grade | **sim** (`2026-11-15-v4`); passou no gate pré-definido | **sim**, 15/11/2026 |
+
+Ambos foram promovidos manualmente por `promote_models_v2.py` (DD-036), com backup do artefato anterior.

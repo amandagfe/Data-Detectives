@@ -165,13 +165,36 @@ O fluxo atual exige execução manual e substituição direta do JSON. Não exis
 
 Qualquer uso de “probabilidade”, “perigo”, “risco atual” ou “alerta” exige calibração, validação prospectiva, definição do domínio e avaliação com especialistas/órgãos responsáveis.
 
-## Preparação de candidatos v2 — sem treinamento
+## Modelos v2 — publicados em 15/11/2026
 
-Os scripts abaixo não alteram `data/models.json`:
+Os dois candidatos foram promovidos para `data/models.json` (sha256 `ca11d36f…af9e`) por `scripts/promote_models_v2.py`, por decisão da responsável (DD-036). A versão anterior está em `data/releases/backups/models-ef64dcb5d42a159b.json`; para voltar atrás, basta copiá-la sobre `data/models.json`, e o site volta a ler o formato v1. As evidências copiadas ficam em `data/releases/2026-11-15-v2/`, que o `server.py` não serve. Ambos produzem **score não calibrado**, e o Brier é informado apenas como diagnóstico. Não devem ser apresentados como probabilidade, risco ou alerta.
 
-- `weather_pipeline.py` criou 8.197 pares célula-data rastreáveis. A regra preditiva usa POWER LST somente até D−1 e mantém ledger de coleta/exclusão. O piloto validou quatro pares, mas 7.953 continuam pendentes; portanto o modelo de disparo **não está pronto para treino**.
-- `build_land_grid.py` define o domínio sem consultar eventos. `prepare_structural_v2.py` reserva blocos espaciais, validação temporal e testes finais temporal/espacial; atributos terminam antes dos rótulos e células sem histórico permanecem explícitas.
-- A grade proposta contém 29.496 células, mas 51 dos 10.988 registros de 2007–2017 ficam fora dela. Isso pode decorrer de ilhas omitidas no mapa 110m, posição costeira ou incerteza. O modelo estrutural **não está pronto para treino** até a política de domínio ser fechada.
+### Estrutural — `data/runs/structural/2026-11-15-v4/`
+
+- Domínio: grade 1:50m independente dos eventos, 18.378 células, sem Antártica; 12.925 de 12.928 registros de 2007–2025 usados.
+- Alvo: ao menos um registro na célula de 1° × mês, num horizonte de dois anos.
+- Hiperparâmetros escolhidos só nas validações: `max_leaf_nodes=12`, `min_samples_leaf=80`, `l2=1.0`.
+
+| Teste reservado | Exemplos | Positivos | AUC (baseline) | AP (baseline) |
+|---|---:|---:|---|---|
+| temporal (rótulos 2017–2018) | 179.340 | 1.140 | 0,9546 (0,9235) | 0,2218 (0,1698) |
+| espacial (blocos reservados) | 17.052 | 152 | 0,9662 (0,9463) | 0,3773 (0,3204) |
+
+Status: `accepted_for_manual_promotion`. O refit de produção usou 1.543.752 exemplos e 4.556 positivos. Artefato: `structural-v2.json`, sha256 `dc9aa9cf…56e9`. Pendência: `manifest.json`/`report.json` ainda gravam caminhos absolutos.
+
+### Meteorológico — `data/runs/weather/2026-11-15-v2/training/`
+
+- Dados: 9.177 pares válidos (MERRA2, LST); variáveis até D−1; percentis com referência fixa 2001–2006; 4 controles por caso, fora de ±10 dias de qualquer registro e nunca depois de 18/05/2025.
+- Hiperparâmetros escolhidos só nas validações (AUC média 0,7964): `max_leaf_nodes=12`, `min_samples_leaf=50`, `l2=1.0`.
+
+| Teste reservado (2020–2025) | Casos | Controles | AUC (baseline chuva 7d) | AP (baseline) | ΔAUC IC95% (bootstrap por célula) |
+|---|---:|---:|---|---|---|
+| temporal | 60 | 239 | 0,8017 (0,7416) | 0,5608 (0,4628) | +0,024 a +0,098 |
+| espacial | 13 | 52 | 0,7929 (0,7574) | 0,5955 (0,5178) | −0,077 a +0,151 |
+
+Status: `accepted_for_manual_promotion`, porque o gate exige apenas AUC e AP ≥ baseline. **Leitura correta:** o ganho temporal é robusto, mas o ganho espacial **não é distinguível de zero**. Os testes são pequenos porque o catálogo tem poucos registros datados a partir de 2019 (232 registros; 182 viraram candidatos). O refit de produção usou 45.369 exemplos, 9.177 casos e 2.744 células, com paridade Python/JSON 0,0. Artefato: `weather-v2.json`, sha256 `3a20d4d1…9fb7`. A variável mais importante por permutação foi `percentile_rain_1d`. O bootstrap está em `training/bootstrap-final-tests.json`.
+
+Uma primeira execução, guardada em `training.pre-repair/`, perdeu 124 casos por status de célula defasado. Ela foi descartada após o reparo descrito em [preparacao-dados.md](preparacao-dados.md#execução-completa-2026-11-15-v2-catálogo-integrado-20072025).
 
 Transformações aprendidas futuras só podem usar `selection_train` do respectivo corte. `final_temporal_test` e `final_spatial_test` não podem orientar hiperparâmetros, seleção de atributos, limiares ou explicações. DD-027 permanece separada: o novo ledger não explica retrospectivamente as perdas do treino antigo.
 

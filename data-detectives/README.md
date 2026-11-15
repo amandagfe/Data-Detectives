@@ -10,7 +10,9 @@ O projeto é uma ferramenta de estudo. Não é alerta oficial e não estima risc
 python3 server.py
 ```
 
-Abra `http://localhost:8000`. É necessário um servidor HTTP porque os artefatos em `data/` são carregados com `fetch`.
+Abra `http://localhost:8000` (outra porta: `DD_PORT=8001 python3 server.py`). É necessário um servidor HTTP porque os artefatos em `data/` são carregados com `fetch`.
+
+Use **só** o `server.py`; ele substitui o `python3 -m http.server`. Com `http.server`, as rotas `/api/telegram/*` não existem e o botão do Telegram fica desativado. O `server.py` entrega apenas os arquivos do site (`index.html`, `app.js`, `i18n.js`, `style.css`, `assets/` e os JSONs de `data/`), com o caminho já decodificado. `.env`, `.git`, `.venv`, `scripts/`, `tests/`, `docs/` e `data/runs/` respondem 404.
 
 O servidor entrega os arquivos estáticos e expõe uma ponte opcional para Telegram. O navegador:
 

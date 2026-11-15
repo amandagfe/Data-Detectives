@@ -12,7 +12,7 @@
 
 Pré-requisitos mínimos:
 
-- Python com `http.server` ou qualquer servidor de arquivos estáticos;
+- Python 3 para `server.py`, que serve o site e a ponte Telegram num único processo. Um servidor estático qualquer (`http.server`, por exemplo) carrega o site, mas deixa o Telegram desativado;
 - navegador moderno com JavaScript, `fetch`, WebGL/canvas, SVG, `localStorage` e `AbortController`; geolocalização é opcional e exige contexto seguro (`https` ou `localhost`) e permissão do usuário;
 - acesso de rede às APIs e CDNs listadas em [arquitetura.md](arquitetura.md#serviços-externos).
 
@@ -157,7 +157,7 @@ O campo `updated` de ENSO usa `datetime.date.today()` da máquina que executa o 
 | geolocalização | loading e mensagens distintas para permissão negada, posição indisponível, timeout e API ausente; busca continua disponível | permissão/precisão dependem do navegador e dispositivo; teste em dispositivos reais pendente |
 | reverse | mantém nome genérico | adequado |
 | GIBS | mensagem de erro e cache removido; data/fallback vêm de `data/gibs.json` | sem código HTTP na UI; metadado pode vencer |
-| Telegram | funcionalidade ausente | reintrodução exige arquitetura nova |
+| Telegram | status `/api/telegram/status`; sem backend, desativado com motivo `backend_unavailable`; 429 vira “limite atingido” | adequado; envio real depende do token/destino em `.env` |
 | dados parciais POWER | valores fill viram `NaN`; anos incompletos são excluídos | não informa porcentagem de ausências ao usuário |
 
 ## Verificações executadas em 15/11/2026
@@ -197,7 +197,18 @@ Esses resultados confirmam sintaxe, integridade JSON e serviço estático básic
 
 ## Publicação
 
-**Não verificado.** `.nojekyll` sugere compatibilidade com GitHub Pages, porém:
+### GitHub Pages (hospedagem estática)
+
+O site funciona sem backend. Em 15/11/2026, um servidor estático com o site em subcaminho (`/data-detectives/`, como num Pages de projeto) foi aberto em Chrome headless: carregou catálogo, modelos v2 e gráficos sem erro de JavaScript.
+
+Requisitos e comportamento:
+
+- `index.html`, `app.js`, `i18n.js`, `style.css`, `assets/`, `.nojekyll` e os cinco JSONs de `data/` (`catalog`, `models`, `enso`, `gibs`, `coolr-status`) precisam estar commitados. Se faltar um JSON, a página inteira não carrega, porque eles são lidos juntos na abertura.
+- Todas as URLs são relativas, então o site funciona na raiz ou em subcaminho.
+- O Telegram depende do `server.py`. Sem ele, `api/telegram/status` responde 404 e o painel fica oculto, sem mensagem de erro ao visitante. O token nunca vai para o Pages.
+- Tudo que é commitado fica público. `.env`, `data/runs/` e `data/releases/` estão no `.gitignore`. Os JSONs de `data/` não contêm caminhos da máquina: as linhagens do catálogo usam caminhos relativos à raiz desde 15/11/2026.
+
+**Não verificado** no Pages real:
 
 - `git remote -v` não mostrou remoto;
 - não há workflow, `CNAME`, Dockerfile ou configuração de hospedagem;

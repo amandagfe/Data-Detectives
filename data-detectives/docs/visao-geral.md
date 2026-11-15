@@ -96,7 +96,7 @@ As correções estão ordenadas em [plano-de-tarefas.md](plano-de-tarefas.md).
 - O resultado inicial chama a saída de score/indicador meteorológico e explica junto ao valor que não é risco, probabilidade calibrada, alerta ou diagnóstico de um imóvel.
 - A geolocalização informa a precisão do dispositivo separadamente da resolução POWER (~0,5° × 0,625°); uma coordenada precisa não aumenta a resolução regional.
 
-Os rótulos enganosos foram corrigidos, Telegram passou ao backend e o COOLR foi aplicado ao mapa/histórico. Permanecem limitações científicas dos modelos até 2017, coleta POWER incompleta, licença/versão COOLR não verificadas e domínio estrutural em revisão.
+Os rótulos enganosos foram corrigidos, Telegram passou ao backend e o COOLR foi aplicado ao mapa/histórico. Permanecem as limitações científicas dos modelos publicados até 2017 e a licença/versão COOLR não verificada. A coleta POWER e o domínio estrutural foram concluídos, e os modelos v2, com dados até 2025, foram publicados em 15/11/2026.
 
 ## Verificações desta etapa
 
@@ -108,4 +108,4 @@ Os rótulos enganosos foram corrigidos, Telegram passou ao backend e o COOLR foi
 
 ## Próxima ação recomendada
 
-Concluir a coleta POWER rastreável (DD-032), decidir a integração COOLR (DD-031) e fechar o domínio estrutural (DD-033). Telegram deve permanecer desativado até existir arquitetura segura. Veja [preparacao-dados.md](preparacao-dados.md) e o plano P0/P1.
+Formalizar o rollback (DD-016) e avaliar a calibração dos modelos v2 (DD-009). O Telegram funciona rodando apenas `server.py`, que serve o site e a ponte no mesmo processo. O token fica em `.env` (`0600`) e nunca chega ao navegador. Veja [preparacao-dados.md](preparacao-dados.md) e o plano P0/P1.

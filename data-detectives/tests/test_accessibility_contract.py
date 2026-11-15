@@ -75,14 +75,13 @@ class AccessibilityContractTest(unittest.TestCase):
     def test_globe_has_complete_text_alternative(self):
         _, globe = self.by_id["globe"]
         self.assertEqual(globe.get("aria-describedby"), "globe-help")
-        _, summary = self.by_id["active-layer-summary"]
-        self.assertEqual(summary.get("aria-live"), "polite")
-        layer_cards = [attrs for _, attrs in self.doc.tags if "data-layer-card" in attrs]
-        show_buttons = [attrs for _, attrs in self.doc.tags if "data-show-layer" in attrs]
+        _, tip = self.by_id["layer-tip"]
+        self.assertEqual(tip.get("role"), "tooltip")
+        chips = [attrs for _, attrs in self.doc.tags if "data-l" in attrs]
         expected = {"ev", "risk", "rain", "soil", "haz", "sat"}
-        self.assertEqual({attrs["data-layer-card"] for attrs in layer_cards}, expected)
-        self.assertEqual({attrs["data-show-layer"] for attrs in show_buttons}, expected)
-        self.assertIn("function renderLayerGuide()", self.js)
+        self.assertEqual({attrs["data-l"] for attrs in chips}, expected)
+        self.assertIn("function showLayerTip(", self.js)
+        self.assertIn("addEventListener('focus'", self.js)
         self.assertIn("gibsTimeNote", self.js)
 
 

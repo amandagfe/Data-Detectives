@@ -27,6 +27,15 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def portable(path: Path) -> str:
+    """Caminho relativo à raiz do projeto, sem expor diretórios pessoais."""
+    resolved = Path(path).resolve()
+    try:
+        return resolved.relative_to(ROOT).as_posix()
+    except ValueError:
+        return resolved.name
+
+
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -115,7 +124,7 @@ def coolr_event(feature: dict[str, Any], shared: bool, manifest_path: Path) -> d
         "lineage": {
             "component": "COOLR Reports Points",
             "objectid": row.get("objectid"),
-            "manifest": str(manifest_path),
+            "manifest": portable(manifest_path),
         },
     }
 
@@ -139,7 +148,7 @@ def local_event(row: dict[str, str], source_row: int, manifest_path: Path) -> di
         "source": {"name": clean(row.get("source_name")), "url": clean(row.get("source_link"))},
         "import": {"source": clean(row.get("event_import_source")), "id": clean(row.get("event_import_id"))},
         "catalog_origin": "glc_local_only",
-        "lineage": {"component": "GLC local snapshot", "source_row": source_row, "manifest": str(manifest_path)},
+        "lineage": {"component": "GLC local snapshot", "source_row": source_row, "manifest": portable(manifest_path)},
     }
 
 
@@ -188,8 +197,8 @@ def main() -> int:
         "source": {
             "policy": "coolr_reports_points_supersedes_same_event_id; preserve_local_only; never_deduplicate_by_date_or_coordinate",
             "records": len(events),
-            "coolr_manifest": str(args.coolr_manifest),
-            "local_manifest": str(args.local_manifest),
+            "coolr_manifest": portable(args.coolr_manifest),
+            "local_manifest": portable(args.local_manifest),
             "origins": dict(origins),
             "version": None,
             "license": None,

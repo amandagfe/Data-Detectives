@@ -37,6 +37,29 @@ SECRET_ENV_KEYS = {
 }
 
 
+# Lista de permissão: só o que o site carrega. O caminho é decodificado antes
+# da checagem para que "/%2Eenv" e semelhantes não escapem do filtro.
+PUBLIC_FILES = {"", "index.html", "app.js", "i18n.js", "style.css", "favicon.ico"}
+PUBLIC_DIRS = {"assets", "data"}
+PRIVATE_DATA_DIRS = {"runs", "sources", "grids", "releases"}
+
+
+def is_public_path(raw_path: str) -> bool:
+    path = urllib.parse.unquote(raw_path)
+    if "\\" in path or "\x00" in path:
+        return False
+    parts = [part for part in path.split("/") if part]
+    if any(part.startswith(".") for part in parts):
+        return False  # .env, .git, .venv, "..", etc.
+    if not parts:
+        return True
+    if len(parts) == 1:
+        return parts[0] in PUBLIC_FILES
+    if parts[0] not in PUBLIC_DIRS:
+        return False
+    return not (parts[0] == "data" and parts[1] in PRIVATE_DATA_DIRS)
+
+
 def load_environment_file(path: Path) -> None:
     """Carrega somente chaves Telegram de arquivo local com permissão privada."""
     if not path.exists():
@@ -238,10 +261,16 @@ class SiteHandler(SimpleHTTPRequestHandler):
         if path == "/healthz":
             self._json(HTTPStatus.OK, {"ok": True})
             return
-        if path.startswith(("/.git", "/.env", "/server.py", "/tests/")):
+        if not is_public_path(path):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
         super().do_GET()
+
+    def do_HEAD(self) -> None:  # noqa: N802
+        if not is_public_path(urllib.parse.urlparse(self.path).path):
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        super().do_HEAD()
 
     def do_POST(self) -> None:  # noqa: N802
         if urllib.parse.urlparse(self.path).path != "/api/telegram/notices":

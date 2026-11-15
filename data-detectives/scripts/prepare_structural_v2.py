@@ -16,10 +16,13 @@ RAIN = {"downpour", "rain", "continuous_rain", "monsoon", "tropical_cyclone"}
 ROLES = {
     "selection_train": ((2007, 2012), (2013, 2014), "development"),
     "selection_spatial_validation": ((2007, 2012), (2013, 2014), "validation"),
-    "selection_temporal_validation": ((2007, 2014), (2015, 2015), "development"),
-    "final_temporal_test": ((2007, 2015), (2016, 2017), "development"),
-    "final_spatial_test": ((2007, 2015), (2016, 2017), "test"),
+    "selection_temporal_validation": ((2007, 2014), (2015, 2016), "development"),
+    "final_temporal_test": ((2007, 2016), (2017, 2018), "development"),
+    "final_spatial_test": ((2007, 2016), (2017, 2018), "test"),
 }
+EVENT_PERIOD = (2007, 2025)
+PRODUCTION_FEATURE_YEARS = (2007, 2025)
+SUPPORTED_CATALOG_SCHEMAS = {2, 3}
 
 
 def sha256(path: Path) -> str:
@@ -36,10 +39,15 @@ def event_rows(catalog: dict) -> list[dict]:
     rows = []
     for event in catalog["events"]:
         date = event.get("event_date")
-        if not date or not ("2007-01-01" <= date <= "2017-12-31") or event.get("latitude") is None or event.get("longitude") is None:
+        lat, lon = event.get("latitude"), event.get("longitude")
+        if (not date or not ("2007-01-01" <= date <= "2025-12-31")
+                or not isinstance(lat, (int, float)) or isinstance(lat, bool)
+                or not isinstance(lon, (int, float)) or isinstance(lon, bool)
+                or not (-90 <= lat <= 90 and -180 <= lon <= 180)):
             continue
         rows.append({
-            "cell": (math.floor(event["latitude"]), math.floor(event["longitude"])),
+            "event_id": str(event.get("event_id")),
+            "cell": (math.floor(lat), math.floor(lon)),
             "year": int(date[:4]), "month": int(date[5:7]),
             "fatality": event.get("fatality_count"),
             "rain": (event.get("landslide_trigger") or "").strip().lower() in RAIN,
@@ -141,14 +149,19 @@ def main() -> int:
     parser.add_argument("--limit-cells", type=int)
     args = parser.parse_args()
     catalog = json.loads(args.catalog.read_text(encoding="utf-8")); grid = json.loads(args.grid.read_text(encoding="utf-8"))
-    if catalog.get("schema_version") != 2 or not grid.get("independent_of_event_records"):
-        raise ValueError("entradas não satisfazem os contratos v2")
+    if catalog.get("schema_version") not in SUPPORTED_CATALOG_SCHEMAS or not grid.get("independent_of_event_records"):
+        raise ValueError("entradas não satisfazem os contratos estruturais")
     events = event_rows(catalog); cells = [tuple(cell) for cell in grid["cells"]]; cell_set = set(cells)
-    off_grid = sum(event["cell"] not in cell_set for event in events)
+    off_grid_events = [event for event in events if event["cell"] not in cell_set]
+    off_grid = len(off_grid_events)
     report = {
         "schema_version": 1, "catalog": {"path": str(args.catalog), "sha256": sha256(args.catalog)},
         "grid": {"path": str(args.grid), "sha256": sha256(args.grid), "cells": len(cells), "independent_of_events": True},
-        "events_2007_2017": len(events), "event_rows_outside_grid": off_grid,
+        "event_period": list(EVENT_PERIOD), "events_2007_2025": len(events),
+        "event_rows_inside_grid": len(events) - off_grid,
+        "event_rows_outside_grid": off_grid,
+        "outside_grid_event_ids": [event["event_id"] for event in off_grid_events],
+        "outside_grid_policy": "excluded without coordinate relocation; source records remain preserved in catalog.json",
         "spatial_partitions": dict(collections.Counter(partition(cell) for cell in cells)),
         "roles": {role: role_summary(events, cells, role, spec) for role, spec in ROLES.items()},
         "leakage_controls": {
@@ -158,6 +171,12 @@ def main() -> int:
             "selection_allowed": ["selection_train", "selection_spatial_validation", "selection_temporal_validation"],
             "selection_forbidden": ["final_temporal_test", "final_spatial_test"],
             "unseen_cells": "retained with zero history, has_local_history=0 and rain_trigger_fraction=null plus missing indicator",
+        },
+        "production": {
+            "feature_years": list(PRODUCTION_FEATURE_YEARS),
+            "forecast_horizon": [2026, 2027],
+            "uses_final_tests_for_selection": False,
+            "note": "production refit may use all eligible events only after model choices are frozen from selection roles and final tests are reported",
         },
         "training_performed": False,
     }

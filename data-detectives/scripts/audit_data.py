@@ -508,6 +508,7 @@ def audit_models(models: dict) -> tuple[dict, set[tuple[int, int]], list[str]]:
     problems: list[str] = []
     grid = models.get("grid", {})
     cells = grid.get("cells", [])
+    grid_v2 = int(grid.get("schema_version", 0)) >= 2
     cell_keys = []
     invalid_rows = 0
     invalid_values = 0
@@ -527,7 +528,7 @@ def audit_models(models: dict) -> tuple[dict, set[tuple[int, int]], list[str]]:
         cell_keys.append(key)
         all_values.extend(values)
         probs = [value / 1000 for value in values]
-        p2 = 1 - math.prod(1 - value for value in probs)
+        p2 = max(probs) if grid_v2 else 1 - math.prod(1 - value for value in probs)
         p2_values.append(p2)
         cell_lookup[key] = {"monthly": probs, "p2": p2}
     cell_dupes = duplicate_stats(cell_keys)
@@ -574,7 +575,8 @@ def audit_models(models: dict) -> tuple[dict, set[tuple[int, int]], list[str]]:
             "p2_max": max(p2_values, default=None),
             "metrics_n_cells": grid.get("metrics", {}).get("n_cells"),
             "metrics_matches_rows": grid.get("metrics", {}).get("n_cells") == len(cells),
-            "p2_assumption": "1-product(1-p_month); independencia mensal nao validada",
+            "aggregate_rule": "maximum monthly uncalibrated score" if grid_v2 else "1-product(1-p_month)",
+            "p2_assumption": None if grid_v2 else "independencia mensal nao validada",
             "petrópolis": None if petr is None else {"cell": list(petr_key), **petr},
         },
         "trigger": {

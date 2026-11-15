@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import collections
 import hashlib
 import json
 import math
@@ -43,16 +44,18 @@ def ring(topology: dict, indexes: list[int], cache: dict) -> list:
 
 
 def polygons(topology: dict) -> list:
-    geometry = topology["objects"]["land"]["geometries"][0]
-    raw = geometry["arcs"]
-    if geometry["type"] == "Polygon":
-        raw = [raw]
+    land = topology["objects"]["land"]
+    geometries = land.get("geometries", [land])
     cache = {}
     result = []
-    for polygon in raw:
-        rings = [ring(topology, indexes, cache) for indexes in polygon]
-        xs = [point[0] for point in rings[0]]; ys = [point[1] for point in rings[0]]
-        result.append((min(xs), min(ys), max(xs), max(ys), rings))
+    for geometry in geometries:
+        raw = geometry["arcs"]
+        if geometry["type"] == "Polygon":
+            raw = [raw]
+        for polygon in raw:
+            rings = [ring(topology, indexes, cache) for indexes in polygon]
+            xs = [point[0] for point in rings[0]]; ys = [point[1] for point in rings[0]]
+            result.append((min(xs), min(ys), max(xs), max(ys), rings))
     return result
 
 
@@ -131,25 +134,104 @@ def intersects_land_cell(lon: int, lat: int, shapes: list) -> bool:
     return False
 
 
+def index_shapes(shapes: list) -> dict[tuple[int, int], list]:
+    """Indexa apenas células tocadas pelo bbox; evita testar 64.800×todos os polígonos."""
+    indexed = collections.defaultdict(list)
+    for shape in shapes:
+        minx, miny, maxx, maxy, _ = shape
+        lat_start = max(-90, math.floor(miny))
+        lat_end = min(89, math.floor(maxy))
+        lon_start = max(-180, math.floor(minx))
+        lon_end = min(179, math.floor(maxx))
+        for lat in range(lat_start, lat_end + 1):
+            for lon in range(lon_start, lon_end + 1):
+                indexed[(lat, lon)].append(shape)
+    return indexed
+
+
+def unwrap(points: list) -> list:
+    output = []
+    offset = 0
+    previous = None
+    for lon, lat in points:
+        value = lon + offset
+        if previous is not None:
+            if value - previous > 180:
+                offset -= 360; value -= 360
+            elif value - previous < -180:
+                offset += 360; value += 360
+        output.append((value, lat)); previous = value
+    return output
+
+
+def fill_ring(points: list) -> set[tuple[int, int]]:
+    """Preenche centros de células por varredura horizontal."""
+    points = unwrap(points)
+    result = set()
+    min_lat = max(-90, math.floor(min(y for _, y in points)))
+    max_lat = min(89, math.floor(max(y for _, y in points)))
+    for lat in range(min_lat, max_lat + 1):
+        y = lat + 0.5
+        crossings = []
+        for (x0, y0), (x1, y1) in zip(points, points[1:] + points[:1]):
+            if (y0 > y) == (y1 > y):
+                continue
+            crossings.append(x0 + (y - y0) * (x1 - x0) / (y1 - y0))
+        crossings.sort()
+        for start, end in zip(crossings[0::2], crossings[1::2]):
+            first = math.ceil(start - 0.5)
+            last = math.floor(end - 0.5)
+            for lon in range(first, last + 1):
+                result.add((lat, ((lon + 180) % 360) - 180))
+    return result
+
+
+def boundary_cells(points: list) -> set[tuple[int, int]]:
+    result = set(); points = unwrap(points)
+    for (x0, y0), (x1, y1) in zip(points, points[1:] + points[:1]):
+        steps = max(1, math.ceil(max(abs(x1 - x0), abs(y1 - y0)) * 4))
+        for step in range(steps + 1):
+            fraction = step / steps
+            lon = ((math.floor(x0 + (x1 - x0) * fraction) + 180) % 360) - 180
+            lat = math.floor(y0 + (y1 - y0) * fraction)
+            if -90 <= lat < 90:
+                result.add((lat, lon))
+    return result
+
+
+def rasterize(shapes: list) -> set[tuple[int, int]]:
+    result = set()
+    for _, _, _, _, rings in shapes:
+        polygon = fill_ring(rings[0])
+        for hole in rings[1:]:
+            polygon.difference_update(fill_ring(hole))
+        result.update(polygon)
+        for points in rings:
+            result.update(boundary_cells(points))
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--catalog", type=Path, default=ROOT / "data" / "catalog.json")
+    parser.add_argument("--topology", type=Path,
+                        default=ROOT / "data" / "sources" / "natural-earth" / "land-50m.json")
     parser.add_argument("--output", type=Path, default=ROOT / "data" / "grids" / "land-1deg.json")
     args = parser.parse_args()
-    catalog = json.loads(args.catalog.read_text(encoding="utf-8"))
-    land = catalog["land"]  # deliberadamente não acessa catalog.events
-    shapes = polygons(land)
-    coastal = coastline_cells(shapes)
-    cells = []
-    for lat_floor in range(-90, 90):
-        for lon_floor in range(-180, 180):
-            if (lat_floor, lon_floor) in coastal or center_on_land(lon_floor + 0.5, lat_floor + 0.5, shapes):
-                cells.append([lat_floor, lon_floor])
+    topology = json.loads(args.topology.read_text(encoding="utf-8"))
+    shapes = polygons(topology)
+    # O produto é voltado a regiões onde o catálogo e o uso civil fazem sentido.
+    # A Antártica é excluída por uma fronteira geográfica fixa, não pelos eventos.
+    cells = [[lat, lon] for lat, lon in sorted(rasterize(shapes)) if lat >= -60]
+    try:
+        source_file = str(args.topology.resolve().relative_to(ROOT))
+    except ValueError:
+        source_file = str(args.topology)
     output = {
-        "schema_version": 1,
-        "definition": "centro da célula de 1 grau em terra ou célula na margem conservadora de 2 graus do contorno world-atlas 110m",
+        "schema_version": 2,
+        "definition": "célula de 1 grau que intersecta terra no contorno Natural Earth 1:50m, exceto Antártica ao sul de 60°S; sem consulta a registros de eventos",
         "independent_of_event_records": True,
-        "source": {"file": str(args.catalog), "sha256": sha256(args.catalog), "json_pointer": "/land"},
+        "excluded_region": "Antarctica south of 60 degrees S",
+        "source": {"file": source_file, "sha256": sha256(args.topology), "json_pointer": "/objects/land"},
         "cells": cells,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

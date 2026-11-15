@@ -89,9 +89,14 @@ button{font:inherit}
 .chip[aria-pressed="true"]{background:var(--on-dark);color:var(--ink);border-color:var(--on-dark)}
 .chips.light .chip{color:var(--ink);background:var(--paper);border-color:var(--line-light)}
 .chips.light .chip[aria-pressed="true"]{background:var(--teal);color:#fff;border-color:var(--teal)}
+.layer-tip{position:fixed;z-index:50;width:min(340px,calc(100vw - 24px));padding:14px 16px;border-radius:16px;background:var(--paper);color:var(--ink);border:1px solid var(--line-light);box-shadow:0 12px 32px rgba(0,26,26,.28);display:grid;gap:6px;pointer-events:none;font-size:13px;line-height:1.45}
+.layer-tip[hidden]{display:none}
+.layer-tip strong{font-family:var(--f-display);font-size:18px;line-height:1.1}
+.layer-tip-kind{width:max-content;max-width:100%;padding:2px 8px;border-radius:999px;background:var(--mist);font-size:11px;font-weight:700;color:var(--teal)}
+.layer-tip p{margin:0;color:var(--ink-soft)}
+.layer-tip-row b{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink)}
 .count{font-size:13px;color:var(--on-dark-soft)}
 .count b{color:var(--on-dark);font-weight:500}
-.layer-help-link{width:max-content;max-width:100%;font-size:13px;font-weight:600;text-underline-offset:3px}
 @media (max-width:980px){
   .hero-stats,.filters{position:static;width:auto;max-width:none}
   .hero-under{display:grid;grid-template-columns:1fr 1fr;gap:24px;padding:0 24px 40px;position:relative;z-index:3}
@@ -102,29 +107,6 @@ button{font:inherit}
 @media (max-width:620px){.hero-under{grid-template-columns:1fr}.hint{white-space:normal;width:max-content;max-width:90%;text-align:center}}
 
 /* A explicação textual é a alternativa completa ao globo/WebGL. */
-.layer-guide{padding-block:76px}
-.active-layer{border:3px solid var(--teal);border-radius:24px;padding:22px;background:var(--paper);display:grid;gap:8px;margin-bottom:24px}
-.active-layer-k{font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--teal)}
-.active-layer strong{font-family:var(--f-display);font-size:32px;line-height:1.05}
-.active-layer>p{color:var(--ink-soft);font-size:16px}
-.active-layer dl{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:8px 0 0}
-.active-layer dl div{border-top:1px solid var(--line-light);padding-top:10px}
-.active-layer dt{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--teal)}
-.active-layer dd{margin:4px 0 0;color:var(--ink-soft)}
-.layer-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-.layer-card{display:grid;gap:10px;align-content:start;border:1px solid var(--line-light);border-radius:22px;padding:20px;background:var(--paper);min-width:0}
-.layer-card.active{border:3px solid var(--teal);padding:18px}
-.layer-card h3{font-size:27px;line-height:1.05}
-.layer-card p{font-size:14px;color:var(--ink-soft)}
-.layer-card .layer-kind{width:max-content;max-width:100%;padding:4px 9px;border-radius:999px;background:var(--mist);font-size:12px;font-weight:700;color:var(--teal)}
-.layer-card .layer-source::before,.layer-card .layer-limit::before{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--ink);margin-bottom:2px}
-.layer-card .layer-source::before{content:attr(data-label)}
-.layer-card .layer-limit::before{content:attr(data-label)}
-.layer-card button{justify-self:start;margin-top:auto}
-.layer-card button[aria-pressed="true"]{font-weight:700;text-decoration:none;color:var(--ink)}
-.layer-guide-note{margin-top:24px;padding:16px 18px;border-left:4px solid var(--coral);background:var(--paper)}
-@media (max-width:980px){.layer-cards{grid-template-columns:1fr 1fr}}
-@media (max-width:640px){.layer-cards,.active-layer dl{grid-template-columns:1fr}}
 
 /* BANDS */
 section{padding-block:100px}
@@ -453,6 +435,7 @@ figcaption b{font-family:var(--f-mono);font-weight:500;color:var(--ink)}
 .official-link{background:var(--ink);color:#fff}
 .explore-callout{background:var(--mist);border:1px solid var(--line-light)}
 .explore-btn{appearance:none;border:0;background:var(--coral);color:#24100f;cursor:pointer}
+.telegram-notice[hidden]{display:none}
 .telegram-notice{margin-top:14px;border:1px solid #b7cfcc;background:#f4f9f8;border-radius:22px;padding:20px 22px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:24px}
 .telegram-notice .privacy-note{font-size:12px;margin-top:7px;max-width:78ch}
 .telegram-action{display:grid;gap:8px;justify-items:stretch;min-width:min(100%,230px)}

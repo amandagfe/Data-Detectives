@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import pathlib
 import unittest
 
@@ -10,6 +11,13 @@ SPEC.loader.exec_module(STRUCTURAL)
 
 
 class StructuralProtocolTest(unittest.TestCase):
+    def test_published_grid_is_event_independent_and_excludes_antarctica(self):
+        grid_path = pathlib.Path(__file__).resolve().parents[1] / "data" / "grids" / "land-1deg.json"
+        grid = json.loads(grid_path.read_text(encoding="utf-8"))
+        self.assertTrue(grid["independent_of_event_records"])
+        self.assertEqual(grid["excluded_region"], "Antarctica south of 60 degrees S")
+        self.assertTrue(all(lat >= -60 for lat, _ in grid["cells"]))
+
     def test_every_feature_window_ends_before_labels(self):
         for feature_years, label_years, _ in STRUCTURAL.ROLES.values():
             self.assertLess(feature_years[1], label_years[0])

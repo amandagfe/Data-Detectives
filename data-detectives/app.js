@@ -124,8 +124,8 @@ const quant = (s,q) => s[Math.floor(q*(s.length-1))];
 const pTxt = p => Number.isNaN(p)?'–':p<0.001?'p < '+nf(0.001,3):'p = '+nf(p,3);
 
 /* ================= modelos ================= */
-const G = MOD.grid, CELL = new Map();
-G.cells.forEach(r=>{ const pm=r.slice(2).map(v=>v/1000); const p2=1-pm.reduce((a,v)=>a*(1-v),1); CELL.set(r[0]+','+r[1], {lat:r[0]+.5, lng:r[1]+.5, pm, p2}); });
+const G = MOD.grid, GRID_V2=Number(G.schema_version||0)>=2, CELL = new Map();
+G.cells.forEach(r=>{ const pm=r.slice(2).map(v=>v/1000); const p2=GRID_V2?Math.max(...pm):1-pm.reduce((a,v)=>a*(1-v),1); CELL.set(r[0]+','+r[1], {lat:r[0]+.5, lng:r[1]+.5, pm, p2}); });
 const P2 = sortNum([...CELL.values()].map(c=>c.p2));
 const TH = {mod:quant(P2,.60), alto:quant(P2,.85), muito:quant(P2,.95)};
 const CLS = {muito:{key:'muito',c:'#f55d5d',t:'#2a0808'}, alto:{key:'alto',c:'#f58b5d',t:'#1a0d08'}, mod:{key:'mod',c:'#f2c38b',t:'#2a1a08'}, baixo:{key:'baixo',c:'#2f7a77',t:'#eaf6f4'}, nd:{key:'nd',c:'rgba(234,246,244,.12)',t:'#9fc2bf'},
@@ -138,6 +138,9 @@ function nearestCell(lat,lng){
   return CELL.get(Math.floor(lat)+','+Math.floor(lng)) || null;
 }
 const TM = MOD.trig;
+const WEATHER_V2=Number(TM.schema_version||0)>=2;
+const WEATHER_V2_FEATURES=['rain_d_minus_1','rain_3d','rain_7d','rain_14d','rain_30d','rain_antecedent_30d_excluding_7d','percentile_rain_1d','percentile_rain_3d','percentile_rain_7d','percentile_rain_14d','surface_soil_wetness_d_minus_1','root_soil_wetness_d_minus_1','percentile_surface_soil_wetness','percentile_root_soil_wetness','reference_annual_rain','rain_7d_over_reference_p95'];
+if(WEATHER_V2&&JSON.stringify(TM.feat)!==JSON.stringify(WEATHER_V2_FEATURES)) throw new Error('Contrato de atributos do modelo meteorológico v2 incompatível.');
 function predictTrig(x){
   let raw = TM.base;
   for(const t of TM.trees){ let i=0; while(!t.leaf[i]){ const v=x[t.f[i]]; i = (Number.isNaN(v) ? t.ml[i] : v<=t.th[i]) ? t.l[i] : t.r[i]; } raw += t.v[i]; }
@@ -236,23 +239,46 @@ function layerSource(key){
 function renderLayerGuide(){
   const active=L.layerDetails[layer];
   if(!active) return;
-  $('#active-layer-title').textContent=active.title;
-  $('#active-layer-summary-text').textContent=active.desc;
-  $('#active-layer-source').textContent=layerSource(layer);
-  $('#active-layer-limit').textContent=active.limit;
-  $('#active-layer-summary').setAttribute('aria-label',`${L.layerActiveAria(active.title)} ${active.desc} ${layerSource(layer)} ${active.limit}`);
   $('#globe').setAttribute('aria-label',`${L.globeLabel} ${L.layerActiveAria(active.title)}`);
-  document.querySelectorAll('[data-layer-card]').forEach(card=>{
-    const key=card.dataset.layerCard,d=L.layerDetails[key],on=key===layer;
-    card.classList.toggle('active',on);
-    card.querySelector('h3').textContent=d.title;
-    card.querySelector('.layer-kind').textContent=d.kind;
-    card.querySelector('.layer-desc').textContent=d.desc;
-    const source=card.querySelector('.layer-source'); source.textContent=layerSource(key); source.dataset.label=L.layerSourceLabel;
-    const limit=card.querySelector('.layer-limit'); limit.textContent=d.limit; limit.dataset.label=L.layerLimitLabel;
-    const b=card.querySelector('[data-show-layer]'); b.setAttribute('aria-pressed',String(on)); b.textContent=on?L.layerShowing:L.layerShow;
-  });
 }
+// Pop-up explicativo ao passar o mouse (ou focar pelo teclado) nos botões de camada
+const layerTip=$('#layer-tip');
+let tipChip=null;
+function showLayerTip(chip){
+  const key=chip.dataset.l, d=L.layerDetails[key];
+  if(!d) return;
+  layerTip.innerHTML='';
+  const h=document.createElement('strong'); h.textContent=d.title;
+  const k=document.createElement('span'); k.className='layer-tip-kind'; k.textContent=d.kind;
+  const p=document.createElement('p'); p.textContent=d.desc;
+  const row=(label,text)=>{const el=document.createElement('p'); el.className='layer-tip-row'; const b=document.createElement('b'); b.textContent=label; el.append(b,document.createTextNode(text)); return el;};
+  layerTip.append(h,k,p,row(L.layerSourceLabel,layerSource(key)),row(L.layerLimitLabel,d.limit));
+  layerTip.hidden=false;
+  if(tipChip&&tipChip!==chip) tipChip.removeAttribute('aria-describedby');
+  tipChip=chip; chip.setAttribute('aria-describedby','layer-tip');
+  const r=chip.getBoundingClientRect(), box=(chip.closest('.chips')||chip).getBoundingClientRect();
+  const tw=layerTip.offsetWidth, th=layerTip.offsetHeight, m=12, vw=window.innerWidth, vh=window.innerHeight;
+  let left, top;
+  if(box.right+14+tw<=vw-m){ // à direita da coluna de botões, sem cobrir as outras camadas
+    left=box.right+14; top=Math.min(Math.max(m,r.top+r.height/2-th/2),vh-th-m);
+  } else { // telas estreitas: acima ou abaixo do botão
+    left=Math.min(Math.max(m,r.left+r.width/2-tw/2),vw-tw-m);
+    top=r.top-th-10; if(top<m) top=r.bottom+10;
+  }
+  layerTip.style.left=left+'px'; layerTip.style.top=top+'px';
+}
+function hideLayerTip(){
+  layerTip.hidden=true;
+  if(tipChip){ tipChip.removeAttribute('aria-describedby'); tipChip=null; }
+}
+document.querySelectorAll('#layer-chips .chip').forEach(chip=>{
+  chip.addEventListener('mouseenter',()=>showLayerTip(chip));
+  chip.addEventListener('mouseleave',hideLayerTip);
+  chip.addEventListener('focus',()=>showLayerTip(chip));
+  chip.addEventListener('blur',hideLayerTip);
+});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!layerTip.hidden) hideLayerTip(); });
+window.addEventListener('scroll',hideLayerTip,{passive:true});
 function drawLayer(){
   renderLayerGuide();
   $('#risk-ctl').hidden = layer!=='risk';
@@ -295,7 +321,6 @@ function setLayer(next){
   drawLayer();
 }
 $('#layer-chips').addEventListener('click', e=>{const b=e.target.closest('.chip'); if(b) setLayer(b.dataset.l);});
-$('#layer-cards').addEventListener('click',e=>{const b=e.target.closest('[data-show-layer]'); if(b) setLayer(b.dataset.showLayer);});
 let hzT; $('#risk-month').addEventListener('input', e=>{ horizon=+e.target.value; $('#risk-month-lbl').textContent = horizon===0?L.twoYears:L.MESL[horizon-1]; clearTimeout(hzT); hzT=setTimeout(drawLayer,60); });
 
 /* ================= APIs ================= */
@@ -312,7 +337,7 @@ function fetchPower(lat,lng){
   const p=powerChain.then(run,run); powerChain=p.catch(()=>{}); return p;
 }
 async function fetchPowerOnce(lat,lng){
-  const url=`https://power.larc.nasa.gov/api/temporal/daily/point?parameters=PRECTOTCORR,GWETTOP,GWETROOT,T2M&community=AG&longitude=${lng.toFixed(4)}&latitude=${lat.toFixed(4)}&start=19810101&end=${ymd(new Date())}&format=JSON`;
+  const url=`https://power.larc.nasa.gov/api/temporal/daily/point?parameters=PRECTOTCORR,GWETTOP,GWETROOT,T2M&community=AG&longitude=${lng.toFixed(4)}&latitude=${lat.toFixed(4)}&start=19810101&end=${ymd(new Date())}&time-standard=LST&format=JSON`;
   const d=await getJSON(url, 90000), p=d.properties.parameter, fill=(d.header&&d.header.fill_value)||-999;
   const keys=Object.keys(p.PRECTOTCORR).sort();
   const arr=k=>Float64Array.from(keys, d=>{const v=p[k][d]; return (v===fill||v==null)?NaN:v;});
@@ -347,8 +372,8 @@ const V = k => ({label:L.vars[k][0], unit:L.vars[k][1], def:L.vars[k][2], dec:VD
 function analyze(S){
   const n=S.dates.length, {P,GT,GR,T}=S, yr=S.dates.map(d=>+d.slice(0,4)), mo=S.dates.map(d=>+d.slice(4,6)-1);
   const roll=(w,t)=>{let s=0; for(let k=t-w+1;k<=t;k++){ if(k<0||Number.isNaN(P[k])) return NaN; s+=P[k]; } return s;};
-  // linha de base 2001–2017, a mesma usada no treino do modelo de disparo
-  const b0=S.dates.indexOf('20010101'), b1=S.dates.indexOf('20171231');
+  // O v2 usa referência fixa anterior aos rótulos; o ramo legado preserva o contrato antigo.
+  const b0=S.dates.indexOf('20010101'), b1=S.dates.indexOf(WEATHER_V2?'20061231':'20171231');
   const B={D:[],R3:[],R7:[],R14:[],GT:[],GR:[]}; let psum=0, pn=0;
   for(let t=b0;t<=b1;t++){
     if(!Number.isNaN(P[t])){B.D.push(P[t]); psum+=P[t]; pn++;}
@@ -362,11 +387,12 @@ function analyze(S){
   function feats(t){
     if(t<30) return null;
     for(let k=t-29;k<=t;k++) if(Number.isNaN(P[k])) return null;
-    if(Number.isNaN(GT[t-1])||Number.isNaN(GR[t-1])) return null;
-    const r1=Math.max(P[t],P[t-1]), r3=roll(3,t), r7=roll(7,t), r14=roll(14,t), r30=roll(30,t), gt=GT[t-1], gr=GR[t-1];
+    const soilIndex=WEATHER_V2?t:t-1;
+    if(Number.isNaN(GT[soilIndex])||Number.isNaN(GR[soilIndex])) return null;
+    const r1=WEATHER_V2?P[t]:Math.max(P[t],P[t-1]), r3=roll(3,t), r7=roll(7,t), r14=roll(14,t), r30=roll(30,t), gt=GT[soilIndex], gr=GR[soilIndex];
     return [r1,r3,r7,r14,r30,r30-r7,pct(B.D,r1),pct(B.R3,r3),pct(B.R7,r7),pct(B.R14,r14),gt,gr,pct(B.GT,gt),pct(B.GR,gr),map,r7/Math.max(1,q95_7)];
   }
-  let last=n-1; while(last>0 && (Number.isNaN(P[last])||Number.isNaN(GT[last-1])||Number.isNaN(GR[last-1]))) last--;
+  let last=n-1; while(last>0 && (Number.isNaN(P[last])||Number.isNaN(GT[WEATHER_V2?last:last-1])||Number.isNaN(GR[WEATHER_V2?last:last-1]))) last--;
   const recent=[];
   for(let t=Math.max(30,last-119);t<=last;t++){ const x=feats(t); recent.push({d:S.dates[t], p:P[t], r7:roll(7,t), gt:GT[t], s:x?predictTrig(x):NaN}); }
   const xNow=feats(last), now={date:S.dates[last], score:xNow?predictTrig(xNow):NaN, r7:xNow?xNow[2]:NaN, pr7:xNow?xNow[8]:NaN, gt:xNow?xNow[10]:NaN, pgt:xNow?xNow[12]:NaN, q95_7};
@@ -451,10 +477,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#a11y-panel').h
 const onMotionPreference=()=>updateA11yUi(false);
 if(motionMedia.addEventListener) motionMedia.addEventListener('change',onMotionPreference); else motionMedia.addListener(onMotionPreference);
 function renderCatalogStatus(){
-  const pub=COOLR_STATUS.published_catalog,cmp=COOLR_STATUS.integrated_snapshot.comparison_with_published;
+  const pub=COOLR_STATUS.published_catalog;
   $('#catalog-published-value').textContent=L.catalogPublished(fmt(pub.records),pub.event_period.min.slice(0,4),pub.event_period.max.slice(0,4));
-  $('#catalog-integrated-value').textContent=L.catalogIntegrated(fmt(cmp.common_event_ids),fmt(cmp.only_coolr_ids),fmt(cmp.only_local_ids));
-  $('#catalog-integrated-note').textContent=L.catalogIntegratedNote;
 }
 function renderTelegramStatus(){
   const hasResult=Boolean(current&&current.A&&!Number.isNaN(current.A.now.score));
@@ -465,10 +489,13 @@ function renderTelegramStatus(){
 async function loadTelegramStatus(){
   telegramState={enabled:false,reason:'checking',feedback:null,busy:false}; renderTelegramStatus();
   try{
-    const response=await fetch('/api/telegram/status',{headers:{Accept:'application/json'},cache:'no-store'});
+    const response=await fetch('api/telegram/status',{headers:{Accept:'application/json'},cache:'no-store'});
     if(!response.ok) throw new Error('backend');
     const body=await response.json();
     telegramState={enabled:body.enabled===true,reason:body.reason||'backend_unavailable',feedback:null,busy:false};
+    // Só aparece quando há backend (server.py). Em hospedagem estática, como o
+    // GitHub Pages, o painel continua oculto em vez de exibir erro ao visitante.
+    $('#telegram-notice').hidden=false;
   }catch(err){telegramState={enabled:false,reason:'backend_unavailable',feedback:null,busy:false};}
   renderTelegramStatus();
 }
@@ -477,7 +504,7 @@ $('#telegram-send').addEventListener('click',async()=>{
   const pl=current.pl,nw=current.A.now,cl=trigClass(nw.score);
   telegramState.busy=true; telegramState.feedback='sending'; renderTelegramStatus();
   try{
-    const response=await fetch('/api/telegram/notices',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({
+    const response=await fetch('api/telegram/notices',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({
       place:[plName(pl),pl.sub].filter(Boolean).join(', ').slice(0,120),latitude:+pl.lat.toFixed(2),longitude:+pl.lng.toFixed(2),
       score:Math.round(nw.score*100),band:cl.key,data_reference:nw.date
     })});
@@ -874,8 +901,8 @@ function drawDiverging(rows){
 /* ================= seção ENSO global ================= */
 const REGB=[[-90,90,-180,180],[5,37,60,92],[-11,25,92,141],[-56,13,-82,-34],[7,24,-118,-59],[24,72,-170,-52]];
 const REGSTAT=REGB.map(([a,b,c,d])=>{
-  const cnt=new Map(); for(let k=2007*12;k<=2017*12+11;k++) cnt.set(k,0);
-  PT.forEach(p=>{ if(p.year>=2007&&p.year<=2017&&p.month>=1&&p.lat>=a&&p.lat<=b&&p.lng>=c&&p.lng<=d){const k=p.year*12+p.month-1; cnt.set(k,cnt.get(k)+1);} });
+  const cnt=new Map(); for(let k=2007*12;k<=2025*12+11;k++) cnt.set(k,0);
+  PT.forEach(p=>{ if(p.year>=2007&&p.year<=2025&&p.month>=1&&p.lat>=a&&p.lat<=b&&p.lng>=c&&p.lng<=d){const k=p.year*12+p.month-1; cnt.set(k,cnt.get(k)+1);} });
   const ym={}; cnt.forEach((v,k)=>{const y=Math.floor(k/12); ym[y]=(ym[y]||0)+v/12;});
   const g={nino:[],neutro:[],nina:[]}; cnt.forEach((v,k)=>{const y=Math.floor(k/12), ph=phaseOf(k); if(ph&&ym[y]>0) g[ph].push(v/ym[y]);});
   const st={}; for(const ph in g){const a2=g[ph]; st[ph]={m:a2.length?mean(a2):NaN, se:a2.length>2?sd(a2)/Math.sqrt(a2.length):0, n:a2.length};}
@@ -925,7 +952,7 @@ function renderCatalogModels(){
   $('#trigger-legend').innerHTML=segs.map(([k,n])=>`<span><i style="background:${pal[k]}"></i>${nm(k)} <span class="mono">${nf(n/total*100,1)}%</span></span>`).join('');
 
   const svg=$('#year-chart'), W=640,H=300,Lm=46,R=10,T=20,B=30, yc={};
-  PT.forEach(p=>{if(p.year>=2007&&p.year<=2017) yc[p.year]=(yc[p.year]||0)+1});
+  PT.forEach(p=>{if(p.year>=2007&&p.year<=2025) yc[p.year]=(yc[p.year]||0)+1});
   const ys=Object.keys(yc).map(Number).sort(), mx=Math.max(...Object.values(yc)), ticks=niceTicks(0,mx*1.08), top=ticks[ticks.length-1], bw=(W-Lm-R)/ys.length, Yp=v=>T+(top-v)/top*(H-T-B);
   let s='';
   ticks.forEach(t=>{s+=`<line x1="${Lm}" x2="${W-R}" y1="${Yp(t)}" y2="${Yp(t)}" stroke="rgba(11,40,39,.1)"/>`+TX(Lm-8,Yp(t)+4,fmt(t),'end','#4b6866',11,MONO);});
@@ -944,9 +971,11 @@ function renderCatalogModels(){
     svg.setAttribute('viewBox',`0 0 ${W} ${top.length*rh+8}`); svg.innerHTML=s;
   }
   const m1=TM.metrics, m2=G.metrics;
-  $('#m1-metrics').innerHTML=L.m1m({auc:nf(m1.auc,2), base:nf(m1.base_auc,2), time:nf(m1.auc_time,2), rec:Math.round(m1.recall_alto*100)+'%', fpr:Math.round((1-m1.spec_alto)*100)})
+  const m1rows=WEATHER_V2?L.m1mV2({auc:nf(m1.auc,2),base:nf(m1.base_auc,2),time:nf(m1.auc_time,2),btime:nf(m1.base_auc_time,2),ap:nf(m1.ap,2),bap:nf(m1.base_ap,2)}):L.m1m({auc:nf(m1.auc,2), base:nf(m1.base_auc,2), time:nf(m1.auc_time,2), rec:Math.round(m1.recall_alto*100)+'%', fpr:Math.round((1-m1.spec_alto)*100)});
+  $('#m1-metrics').innerHTML=m1rows
     .map(([a,b,c])=>`<div><dt>${a}</dt><dd>${b}</dd><span class="vs">${c}</span></div>`).join('');
-  $('#m2-metrics').innerHTML=L.m2m({auc:nf(m2.auc,2), base:nf(m2.base_auc,2), top:Math.round(m2.top10*100)+'%', btop:Math.round(m2.base_top10*100)+'%', ap:nf(m2.ap,2), pr:nf(m2.pos_rate,3)})
+  const m2rows=GRID_V2?L.m2mV2({auc:nf(m2.auc,2),base:nf(m2.base_auc,2),time:nf(m2.temporal_test.auc,2),btime:nf(m2.temporal_test.baseline_auc,2),ap:nf(m2.ap,2),bap:nf(m2.base_ap,2)}):L.m2m({auc:nf(m2.auc,2), base:nf(m2.base_auc,2), top:Math.round(m2.top10*100)+'%', btop:Math.round(m2.base_top10*100)+'%', ap:nf(m2.ap,2), pr:nf(m2.pos_rate,3)});
+  $('#m2-metrics').innerHTML=m2rows
     .map(([a,b,c])=>`<div><dt>${a}</dt><dd>${b}</dd><span class="vs">${c}</span></div>`).join('');
   imp('m1-imp', TM.imp, L.imp1);
   imp('m2-imp', G.imp, L.imp2);

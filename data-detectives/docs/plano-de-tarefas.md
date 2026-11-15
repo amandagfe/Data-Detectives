@@ -31,7 +31,7 @@ As linhas abaixo não formam um plano paralelo: cada uma referencia o item do ba
 | Perda de rastreabilidade no modelo de disparo | 7.957 pares célula-data elegíveis antes de POWER viram 5.361 casos em 922 lugares → cada descarte explicado | `prepare_events.py`, CSV comparado e `models.json`; `power/`/`trigger.json` ausentes | não se mede viés de cobertura nem se reproduz o treino | confirmado; causas individuais não verificadas | P1; intermediários POWER originais | DD-027 bloqueado |
 | Alinhamento temporal de evento e POWER | evento sem fuso + POWER em LST → regra conservadora D−1 documentada/testada | `weather_pipeline.py`; quatro testes; piloto registra LST e D−30…D−1 | evita usar D/futuro em candidatos novos, mas não reconstrói o treino antigo | limitação confirmada; regra nova verificada | P1; coleta completa | DD-029 concluído para pipeline novo; DD-027 preservado |
 | Produto POWER atribuído ao período | toda a série era rotulada MERRA-2 → mostrar a fonte devolvida pela API | amostras 2001/2017 retornaram `MERRA2`; novembro/2026 retornou `GEOSIT` | procedência incorreta para dados recentes | confirmado | P1; cabeçalho da resposta POWER | resolvida na interface; verificador cobre amostra histórica/recente |
-| Informação posterior no modelo estrutural | domínio usa todo 2007–2017 → grade independente e testes espacial/temporal intocados | código antigo; `build_land_grid.py` e `prepare_structural_v2.py` | desempenho antigo pode aproveitar conhecimento futuro; domínio novo ainda omite 51 registros | confirmado; mitigação em andamento | P1; decisão de domínio | DD-010/DD-033 em andamento |
+| Informação posterior no modelo estrutural | domínio usa todo 2007–2017 → grade independente e testes espacial/temporal intocados | código antigo; `build_land_grid.py` e `prepare_structural_v2.py` | desempenho antigo pode aproveitar conhecimento futuro; domínio novo (1:50m) omite 3 de 12.928 registros | confirmado; candidato v4 treinado sem vazamento de domínio | P1; promoção manual | DD-010/DD-033 concluídos; promoção pendente |
 | Valores ausentes de fatalidade | vazio virava zero → ausente distinto de zero observado | catálogo v2 preserva 1.385 ausentes | cobertura de mortalidade agora é mensurável | confirmado e corrigido | P1; metadados de modelos em DD-008 | DD-030 concluído |
 | Atualidade e data das camadas | GIBS sem `TIME` → `TIME`, data representada e fallback exibidos | `update_gibs_metadata.py`, `data/gibs.json`, `app.js`; GetMap 4/4 | acesso não é confundido com data do dado; snapshot precisa atualização offline | confirmado e corrigido | P1; job futuro | DD-012 concluído |
 | Resolução/localização | pontos compactados pareciam precisos → precisão declarada preservada | catálogo v2 mantém `location_accuracy`, inclusive dois ausentes | análise ainda precisa considerar incerteza, mas o dado não a apaga | confirmado e corrigido no artefato | P1; exibição pode melhorar | DD-030 concluído |
@@ -58,7 +58,7 @@ As linhas abaixo não formam um plano paralelo: cada uma referencia o item do ba
 | DD-007 | P1 | Atualizar tratamento ENSO para ONI histórico versus RONI oficial | requisito científico e fonte RONI | tela não chama ONI defasado de “agora”; data/estação aparecem; ONI é mantido para comparações históricas e RONI é identificado como monitor oficial desde 2026 | concluído |
 | DD-008 | P1 | Versionar metadados dos artefatos/modelos | formato de manifesto | cada JSON registra versão, geração, commit, hashes de entrada, ambiente, período, domínio e horizonte | pendente |
 | DD-009 | P1 | Avaliar calibração e utilidade dos modelos | fontes reproduzíveis; conjunto de avaliação | relatório inclui curva de calibração/Brier, IC, métricas por região/tempo e decisão explícita sobre uso de `%` | depende de DD-006/DD-008 |
-| DD-010 | P1 | Corrigir vazamento espacial/temporal do modelo estrutural | decidir tratamento dos 51 registros fora da grade; depois executar candidato | domínio sem eventos futuros; validações espacial/temporal e testes intocados | em andamento: pipeline preparado, sem treino |
+| DD-010 | P1 | Corrigir vazamento espacial/temporal do modelo estrutural | decidir tratamento dos 51 registros fora da grade; depois executar candidato | domínio sem eventos futuros; validações espacial/temporal e testes intocados | concluído em 15/11/2026: candidato `structural/2026-11-15-v4` passou o gate nos dois testes reservados; não promovido |
 | DD-011 | P1 | Validar e renomear declividade | amostras de referência ou decisão de limitar alegação | texto diz gradiente aproximado GLO-90; remove limiar universal de 15° ou cita/valida critério adequado | concluído pela limitação da alegação; validação local não alegada |
 | DD-012 | P1 | Explicitar data real das camadas GIBS | atualizar `data/gibs.json` offline | requisição usa `TIME` válido e UI mostra data/fallback; camada estática é rotulada | concluído; snapshot de 15/11/2026 |
 | DD-013 | P1 | Criar testes de contrato e cálculo | manifesto de ambiente | CI testa esquema JSON, contagens, datas, `analyze`, árvores Python×JS, `nearestCell` e traduções | em andamento: auditores de artefatos e integrações criados; CI/browser ainda pendentes |
@@ -80,8 +80,10 @@ As linhas abaixo não formam um plano paralelo: cada uma referencia o item do ba
 | DD-029 | P1 | Definir e testar alinhamento de data/fuso entre GLC e POWER | regra conservadora enquanto não houver fuso confiável | LST e D−1 explícitos; fronteiras de mês/ano/bissexto testadas | concluído para execuções novas; histórico coberto por DD-027 |
 | DD-030 | P1 | Preservar metadados do GLC no artefato/manifesto | snapshot bruto | `event_id`, precisão, nulidade, URL, data e hash sobrevivem | concluído no schema v2 |
 | DD-031 | P1 | Decidir integração do COOLR atual sem dupla contagem | snapshots/manifestos preservados | COOLR substitui mesmo `event_id`; IDs exclusivos preservados; nenhuma união por proximidade; contagens reconciliadas | concluído: 14.753 = 11.030 comuns + 3.720 apenas COOLR + 3 apenas GLC |
-| DD-032 | P1 | Concluir nova coleta POWER rastreável | executar 2.493 células restantes fora do site | 8.197 candidatos reconciliados em válidos/excluídos/falhos, com causas e hashes; zero pendente | em andamento: piloto 3/2.496 células |
-| DD-033 | P1 | Fechar domínio estrutural independente | avaliar 51 registros fora da grade e baixa resolução do contorno | domínio explícito, cobertura medida e teste preservado antes de treino | pendente |
+| DD-032 | P1 | Concluir nova coleta POWER rastreável | executar 2.493 células restantes fora do site | 8.197 candidatos reconciliados em válidos/excluídos/falhos, com causas e hashes; zero pendente | concluído em 15/11/2026 com o catálogo integrado: 9.537 candidatos = 9.177 válidos + 360 excluídos, zero pendente/falho/célula defasada; candidato meteorológico treinado e não promovido |
+| DD-033 | P1 | Fechar domínio estrutural independente | avaliar 51 registros fora da grade e baixa resolução do contorno | domínio explícito, cobertura medida e teste preservado antes de treino | concluído: grade 1:50m sem Antártica, 18.378 células, 3/12.928 registros fora e excluídos sem deslocamento |
+| DD-036 | P1 | Decidir promoção dos candidatos v2 | DD-016; revisão dos relatórios | decisão registrada considerando que o ganho espacial do meteorológico não é distinguível de zero (13 casos) e que nenhum score é calibrado; rollback disponível | concluído em 15/11/2026: os dois promovidos por decisão da responsável via `promote_models_v2.py`; anterior em `data/releases/backups/models-ef64dcb5d42a159b.json`; evidências em `data/releases/2026-11-15-v2/` (não servidas); interface atualizada para 2025 e com aviso do teste espacial |
+| DD-037 | P2 | Remover caminhos absolutos de manifesto/relatório estrutural | nova execução estrutural | `manifest.json` e `report.json` usam caminhos relativos à raiz | pendente |
 | DD-034 | P1 | Separar leitura inicial e investigação sem duplicar resultados | semântica DD-001/DD-002 e estado único da análise | resumo mostra local, significado, fatores, período, atualização, limites e orientação oficial; área técnica usa o mesmo objeto `current.A` | concluído; validação visual automatizada pendente em DD-014 |
 | DD-035 | P1 | Adicionar geolocalização com consentimento e retenção mínima | API do navegador e fallback por busca | permissão somente depois do clique; loading/negação/indisponibilidade/timeout tratados; coordenada arredondada não persiste sem ação explícita | concluído no cliente; política ampla de terceiros segue DD-017 |
 
@@ -182,6 +184,25 @@ As linhas abaixo não formam um plano paralelo: cada uma referencia o item do ba
 - **Problemas/impacto:** antes, leitor de tela recebia apenas um rótulo genérico do globo, as datas GIBS não faziam parte da alternativa textual e a pessoa não podia ampliar/contrastar a interface pelo próprio site. Agora cada camada distingue registro, estimativa, modelo, camada estática ou imagem, e nega interpretações indevidas junto da descrição.
 - **Verificação:** 26 testes passaram; `node --check` passou; Chrome headless confirmou abertura/fechamento por `Escape`, preferências aplicadas, troca para IMERG, fallback `TIME=2026-11-13` anunciado e layout inicial em 1440 px e 390 px. O atalho fora de foco foi mantido fora da tela.
 - **Pendência/próxima ação:** teste manual com NVDA, VoiceOver e TalkBack, zoom de 200% em navegadores reais e comportamento quando WebGL está indisponível (DD-021/DD-014). Não se alega certificação WCAG.
+
+### Etapa 12 — coleta POWER completa, domínio estrutural e candidatos v2
+
+- **Analisado/alterado:**
+  - Execução POWER `2026-11-15-v2` sobre o catálogo integrado.
+  - Grade estrutural 1:50m sem Antártica.
+  - Treino dos candidatos estrutural (`v4`) e meteorológico (`v2`).
+  - Trava de coletor único, status de célula derivado de todos os candidatos, detecção de célula defasada em `reconcile` e comando `repair-cells` em `weather_pipeline.py`.
+- **Evidência:** [preparacao-dados.md](preparacao-dados.md), [modelos.md](modelos.md#modelos-v2--publicados-em-15112026), `reconciliation.json`, `report.json` e `bootstrap-final-tests.json` nas pastas de execução.
+- **Problemas/impacto:**
+  - Dois coletores concorrentes, um deles sem DNS, deixaram 36 células com status defasado; o treino perdeu 124 casos em silêncio até a correção.
+  - Os testes finais meteorológicos são pequenos (60/13 casos), e o ganho espacial não é distinguível de zero.
+  - O manifesto estrutural ainda grava caminhos absolutos.
+- **Verificação:**
+  - Reconciliação: 14.753 decisões, perda silenciosa 0, nenhuma célula defasada; 36/36 reparos verificados por hash.
+  - 34 testes passaram em 15/11/2026.
+  - Paridade de exportação meteorológica 0,0.
+  - `data/models.json` não foi alterado.
+- **Pendência/próxima ação:** DD-036 (decisão de promoção), DD-016, DD-037 e DD-009 (calibração).
 
 ## Regra de atualização
 
