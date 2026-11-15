@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+raw/
+data/runs/
+.env
+.env.*
+!*.env.example
+.claude/
